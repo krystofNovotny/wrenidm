@@ -111,7 +111,7 @@ public class TaskInstanceResource implements CollectionResourceProvider {
                 if ("claim".equals(request.getAction())) {
                     taskService.claim(resourceId, request.getContent().expect(Map.class).asMap().get("userId").toString());
                 } else if ("complete".equals(request.getAction())) {
-                    taskService.complete(resourceId, request.getContent().expect(Map.class).asMap(), true);
+                    taskService.complete(resourceId, request.getContent().expect(Map.class).asMap());
                 } else {
                     return new BadRequestException("Unknown action").asPromise();
                 }
