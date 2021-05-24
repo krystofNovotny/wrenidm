@@ -21,5 +21,50 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-      - name: Run the Maven verify phase
-        run: mvn -B verify --file pom.xml
+      - name: Run the Maven install phase
+        run: mvn -B install --file pom.xml
+
+      - name: Upload output file
+        uses: actions/upload-artifact@v2
+        with:
+          name: idm_${{ matrix.java }}
+          path: /home/runner/.m2/repository/org/forgerock/openidm/openidm-zip/6.0.0-SNAPSHOT/openidm-zip-6.0.0-SNAPSHOT.zip
+
+  run-on-linux:
+    name: Run on linux
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [8, 11]
+    steps:
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }} 
+      - name: Install expect
+        run: sudo apt install expect
+      - name: Download idm binary
+        uses: actions/download-artifact@v2
+        with:
+          name: idm_${{ matrix.java }}
+      - name: Unzip
+        run: unzip -d runnable openidm-zip-6.0.0-SNAPSHOT.zip
+      - name: Test startup
+        run: | 
+          cd runnable/wrenidm
+          expect -c 'set timeout 30
+              spawn ./startup.sh
+              expect {
+                  "OpenIDM ready" {}
+                  timeout { puts "timeout"; exit 1 }
+              }
+              send "\x03"' > ../../startup.log
+      - name: Upload log
+        uses: actions/upload-artifact@v2
+        with:
+          name: startup.log
+          path: startup.log
+      - name: Verify log
+        run: test \!`grep -Eq 'ERROR|WARNING' startup.log`
+
